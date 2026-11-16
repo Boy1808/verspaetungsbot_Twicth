@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AZB Streamer</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⏰</text></svg>">
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+  <header>
+    <div class="container">
+      <h1><a href="/"><span class="uhr">⏰</span> AZB Streamer</a></h1>
+      <blockquote>
+        „Wenn die keine Streamer wären, wären sie Penner“
+        <cite>– Trymacs</cite>
+      </blockquote>
+    </div>
+  </header>
+
+  <main>
+    <div class="container" id="inhalt">
+      <p class="leer">Lade Daten …</p>
+    </div>
+  </main>
+
+  <footer>
+    <div class="container">
+      Daten über die Twitch-API · Kein offizielles Twitch-Angebot · Alles mit Humor gemeint 💜<br>
+      <a href="/static/impressum.html">Impressum</a> · <a href="/static/datenschutz.html">Datenschutz</a>
+    </div>
+  </footer>
+
+  <script src="/static/common.js"></script>
+  <script>
+    const login = decodeURIComponent(location.pathname.split("/").pop());
+
+    function diagramm(streams) {
+      const gewertet = streams.filter(s => s.verspaetung_min !== null).slice(0, 20);
+      if (gewertet.length === 0) return `<p class="leer">Noch keine gewerteten Streams.</p>`;
+      const max = Math.max(...gewertet.map(s => Math.abs(s.verspaetung_min)), 15);
+      return gewertet.map(s => {
+        const m = s.verspaetung_min;
+        const breite = Math.max(Math.abs(m) / max * 100, 2);
+        const balken = `<div class="balken ${klasse(m)}" style="width:${breite}%"></div>`;
+        return `
+          <div class="balken-zeile" title="Geplant ${deutscheZeit(s.geplant)}, live ${deutscheZeit(s.gestartet)}">
+            <span class="datum">${deutscheZeit(s.gestartet).replace(" Uhr", "")}</span>
+            <div class="links">${m < 0 ? balken : ""}</div>
+            <div class="rechts">${m >= 0 ? balken : ""}</div>
+            <span class="minuten ${klasse(m)}">${minutenText(m)}</span>
+          </div>`;
+      }).join("");
+    }
+
+    async function ladeProfil() {
+      const inhalt = document.getElementById("inhalt");
+      const antwort = await fetch(`/api/streamer/${encodeURIComponent(login)}`);
+      if (!antwort.ok) {
+        inhalt.innerHTML = `<a class="zurueck" href="/">← Zur Rangliste</a>
+          <h2>Streamer nicht gefunden</h2><p class="leer">„${esc(login)}“ wird (noch) nicht getrackt.</p>`;
+        return;
+      }
+      const d = await antwort.json();
+      const st = d.stats;
+      document.title = `${d.name} – AZB Streamer`;
+
+      inhalt.innerHTML = `
+        <a class="zurueck" href="/">← Zur Rangliste</a>
+
+        <div class="profil-kopf">
+          <span class="avatar">${esc(d.name[0].toUpperCase())}</span>
+          <div>
+            <h2>${esc(d.name)}</h2>
+            <a class="twitch-knopf" href="https://twitch.tv/${encodeURIComponent(d.login)}" target="_blank" rel="noopener">Auf Twitch ansehen</a>
+          </div>
+        </div>
+
+        <div class="karten">
+          <div class="karte"><div class="wert ${klasse(st.schnitt)}">${minutenText(st.schnitt)}</div><div class="label">Ø Verspätung</div></div>
+          <div class="karte"><div class="wert">${prozent(st.puenktlich)}</div><div class="label">Pünktlich (≤ 5 Min.)</div></div>
+          <div class="karte"><div class="wert ${klasse(st.rekord)}">${minutenText(st.rekord)}</div><div class="label">Größte Verspätung</div></div>
+          <div class="karte"><div class="wert ${klasse(st.fruehester)}">${minutenText(st.fruehester)}</div><div class="label">Bester Start</div></div>
+          <div class="karte"><div class="wert">${st.gewertet} / ${st.streams}</div><div class="label">Streams gewertet</div></div>
+        </div>
+
+        <h2>Die letzten Streams</h2>
+        <p class="hinweis">Mittellinie = geplanter Start. Rechts = zu spät, links = zu früh.</p>
+        <div class="diagramm">${diagramm(d.streams)}</div>
+
+        <h2>Nächste geplante Streams</h2>
+        ${d.naechste_termine.length
+          ? `<ul class="liste">${d.naechste_termine.map(t =>
+              `<li><span>${deutscheZeit(t.start)}</span><span class="leer">${esc(t.titel || "Stream")}</span></li>`).join("")}</ul>`
+          : `<p class="leer">Kein Streamplan auf Twitch hinterlegt.</p>`}
+      `;
+    }
+    ladeProfil();
+  </script>
+</body>
+</html>

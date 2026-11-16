@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AZB Streamer – Die Verspätungs-Rangliste</title>
+  <meta name="description" content="Wie pünktlich gehen deutsche Twitch-Streamer wirklich live? Die Rangliste der Verspätungen.">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⏰</text></svg>">
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+  <header>
+    <div class="container">
+      <h1><a href="/"><span class="uhr">⏰</span> AZB Streamer</a></h1>
+      <blockquote>
+        „Wenn die keine Streamer wären, wären sie Penner“
+        <cite>– Trymacs</cite>
+      </blockquote>
+    </div>
+  </header>
+
+  <main>
+    <div class="container">
+      <h2>Die Verspätungs-Rangliste</h2>
+      <p class="hinweis">
+        Verglichen wird der Streamplan auf Twitch mit dem echten Stream-Start.
+        <span class="puenktlich">Grün</span> = pünktlich (max. 5 Min.),
+        <span class="etwas">Gelb</span> = bis 15 Min.,
+        <span class="azb">Rot</span> = AZB,
+        <span class="zu-frueh">Blau</span> = zu früh.
+      </p>
+
+      <div class="tabelle-wrapper">
+        <table>
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Streamer</th>
+              <th class="zahl">Ø Verspätung</th>
+              <th class="zahl">Pünktlich</th>
+              <th class="zahl ausblenden-mobil">Rekord</th>
+              <th class="zahl ausblenden-mobil">Gewertet</th>
+              <th class="ausblenden-mobil">Letzter Stream</th>
+            </tr>
+          </thead>
+          <tbody id="rangliste">
+            <tr><td colspan="7" class="leer">Lade Daten …</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </main>
+
+  <footer>
+    <div class="container">
+      Daten über die Twitch-API · Kein offizielles Twitch-Angebot · Alles mit Humor gemeint 💜<br>
+      <a href="/static/impressum.html">Impressum</a> · <a href="/static/datenschutz.html">Datenschutz</a>
+    </div>
+  </footer>
+
+  <script src="/static/common.js"></script>
+  <script>
+    async function ladeRangliste() {
+      const tbody = document.getElementById("rangliste");
+      try {
+        const daten = await (await fetch("/api/rangliste")).json();
+        if (daten.length === 0) {
+          tbody.innerHTML = `<tr><td colspan="7" class="leer">Noch keine Daten – der Bot sammelt noch.</td></tr>`;
+          return;
+        }
+        let platz = 0;
+        tbody.innerHTML = daten.map(s => {
+          const gewertet = s.gewertet > 0;
+          if (gewertet) platz++;
+          return `
+            <tr>
+              <td class="platz ${gewertet ? "platz-" + platz : ""}">${gewertet ? platz : "–"}</td>
+              <td>
+                <a class="streamer-link" href="/streamer/${encodeURIComponent(s.login)}">
+                  <span class="avatar">${esc(s.name[0].toUpperCase())}</span>${esc(s.name)}
+                </a>
+              </td>
+              <td class="zahl ${klasse(s.schnitt)}">${minutenText(s.schnitt)}</td>
+              <td class="zahl">${prozent(s.puenktlich)}</td>
+              <td class="zahl ausblenden-mobil ${klasse(s.rekord)}">${minutenText(s.rekord)}</td>
+              <td class="zahl ausblenden-mobil">${s.gewertet} / ${s.streams}</td>
+              <td class="ausblenden-mobil leer">${deutscheZeit(s.letzter_stream)}</td>
+            </tr>`;
+        }).join("");
+      } catch (e) {
+        tbody.innerHTML = `<tr><td colspan="7" class="azb">Fehler beim Laden der Daten.</td></tr>`;
+      }
+    }
+    ladeRangliste();
+    setInterval(ladeRangliste, 60_000); // jede Minute aktualisieren
+  </script>
+</body>
+</html>
