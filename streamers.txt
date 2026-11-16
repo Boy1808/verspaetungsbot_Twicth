@@ -1,0 +1,12 @@
+# Ein Twitch-Login pro Zeile (so wie in der URL: twitch.tv/<login>)
+# Zeilen mit # werden ignoriert
+papaplatte
+montanablack88
+trymacs
+handofblood
+gronkh
+eliasn97
+revedtv
+knossi
+rewinside
+staiy
